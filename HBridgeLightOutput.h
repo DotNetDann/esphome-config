@@ -85,10 +85,23 @@ pwmPin myPWMpin;
     float red, green, blue, white;
     state->current_values_as_rgbw(&red, &green, &blue, &white);
 
+
+    if (white > 0.55) {
+      myPWMpin.pwm1Value = (bright * (1-white) * 1024);
+      myPWMpin.pwm2Value = (bright * 1024);
+    } else if (white < 0.45) {
+      myPWMpin.pwm1Value = (bright * 1024);
+      myPWMpin.pwm2Value = (bright * (white) * 1024);
+    } else {
+      myPWMpin.pwm1Value = (bright * 1024);
+      myPWMpin.pwm2Value = (bright * 1024);
+    }
+
     // So 0 will be even
-    white = white - 0.5;
-    myPWMpin.pwm1Value = (int)(bright * (white+0.5) * 1024);
-    myPWMpin.pwm2Value = (bright * (0.5-white) * 1024);
+    //white = white - 0.5;
+    //myPWMpin.pwm1Value = (int)(bright * (white+0.5) * 1024);
+    //myPWMpin.pwm2Value = (bright * (0.5-white) * 1024);
+
 
     ESP_LOGD("HBridgeLightOutput", "LED 1: %d       LED 2: %d", myPWMpin.pwm1Value, myPWMpin.pwm2Value);
     //ESP_LOGD("HBridgeLightOutput", "Changed State: %d|%d from %f|%f", myPWMpin.pwm1Value, myPWMpin.pwm2Value, bright, white);
@@ -131,3 +144,14 @@ pwmPin myPWMpin;
 //              duration: 500ms
 //            - state: False
 //              duration: 250ms
+
+
+
+//COMB				One after anohter
+//IN WAVES
+//SEQUENTIAL		Done
+//SLO-GLO
+//CHASING/FLASH
+//SLOW FADE
+//TWINKLE/FLASH
+//STEADY ON			None

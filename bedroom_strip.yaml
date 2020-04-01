@@ -1,0 +1,125 @@
+# -------------------------------------
+# ---- Implemented on my LED Strip board in bedroom headboard ----
+# -------------------------------------
+
+esphome:
+  name: bedroom_strip
+  platform: ESP8266
+  board: nodemcuv2
+
+  on_boot:
+    priority: -10
+    then:
+      - delay: 2s
+      - light.turn_off: leds
+      - delay: 500ms
+      - switch.turn_on: mosfet
+
+wifi:
+  reboot_timeout: 0s  # Dont reboot..
+  #power_save_mode: light # power reduced from 1.2w to 0.8w
+  #fast_connect: true
+  networks:
+  - ssid: !secret wifi_ssid
+    password: !secret wifi_password
+    hidden: True
+  manual_ip:
+    static_ip: !secret ip_bedroom_strip
+    gateway: !secret ip_gateway
+    subnet: 255.255.255.0
+  ap: # Enable fallback hotspot (captive portal) in case wifi connection fails
+    ssid: "BedroomStrip Fallback Hotspot"
+    password: !secret password
+
+captive_portal:
+
+mqtt:
+  broker: !secret mqtt_host
+  username: !secret mqtt_username
+  password: !secret mqtt_password
+  reboot_timeout: 0s # Dont reboot..
+  discovery: false # They need to run the MQTT message so the mosfet works
+  on_json_message:
+    - topic: bedroom_strip/light/lightstrip/command
+      then:
+        - if:
+            condition:
+              lambda: 'return (x["state"] == "OFF");'
+            then:
+              - switch.turn_on: mosfet
+            else: 
+              - switch.turn_off: mosfet
+                
+
+# Enable logging
+logger:
+
+ota:
+  password: !secret password
+
+# Dam thing always flashes
+#status_led:
+#  pin:
+#    number: GPIO16
+#    inverted: True
+
+light:
+  - platform: neopixelbus
+    type: RGB #GRB??
+#    variant: WS2811 #Needed??
+    pin: GPIO3 #Solder time
+    
+#  - platform: fastled_clockless
+#    chipset: WS2811
+#    pin: GPIO15
+#    rgb_order: RGB
+
+    num_leds: 40
+    name: lightstrip
+    id: leds
+    effects:
+      - flicker:
+      - strobe:
+      - random:
+      - addressable_rainbow:
+          width: 40      
+      - addressable_color_wipe:
+      - addressable_scan:
+      - addressable_twinkle:
+      - addressable_random_twinkle:
+      - addressable_fireworks:
+      - addressable_flicker:
+      
+    
+switch:
+  - platform: gpio
+    pin: GPIO13
+    id: mosfet
+
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO4
+      mode: INPUT_PULLUP
+      inverted: True
+    name: Bed Switch Top 
+    filters:
+      - delayed_on: 10ms
+    
+  - platform: gpio
+    pin:
+      number: GPIO12
+      mode: INPUT_PULLUP
+      inverted: True
+    name: Bed Switch Middle
+    filters:
+      - delayed_on: 10ms
+      
+  - platform: gpio
+    pin:
+      number: GPIO14
+      mode: INPUT_PULLUP
+      inverted: True
+    name: Bed Switch Bottom
+    filters:
+      - delayed_on: 10ms    

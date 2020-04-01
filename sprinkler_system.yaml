@@ -1,0 +1,280 @@
+esphome:
+  name: sprinkler_system
+  platform: ESP32
+  board: esp-wrover-kit
+
+  on_boot:
+    priority: -10 # Run after all internal things done
+    then:
+      - delay: 2s
+      #- switch.turn_on: power
+      #- delay: 500ms
+      - switch.turn_off: power
+  on_shutdown:
+    then:
+      - switch.turn_off: power
+      
+wifi:
+  #power_save_mode: light # power reduced from ?.?w to ?.?w
+  #fast_connect: true
+  networks:
+  - ssid: !secret wifi_ssid
+    password: !secret wifi_password
+    hidden: True
+  manual_ip:
+    static_ip: !secret ip_sprinkler_system
+    gateway: !secret ip_gateway
+    subnet: 255.255.255.0
+  ap: # Enable fallback hotspot (captive portal) in case wifi connection fails
+    ssid: "Sprinkler Fallback Hotspot"
+    password: !secret password
+
+captive_portal:
+
+mqtt:
+  broker: !secret mqtt_host
+  username: !secret mqtt_username
+  password: !secret mqtt_password
+  #reboot_timeout: 0s # Dont reboot..
+
+# Enable logging
+logger:
+#  baud_rate: 0 # So we can use the RX and TX pins
+
+# Enable Home Assistant API
+api:
+  password: !secret password
+  reboot_timeout: 0s # Dont reboot..
+
+ota:
+  password: !secret password
+
+#status_led:
+#    pin: 16
+
+switch:
+  - platform: gpio
+    name: "Sprinkler Zone 4 - West Grass"
+    pin:
+      number: GPIO13
+      inverted: True    
+    icon: "mdi:water-pump"
+    restore_mode: ALWAYS_OFF
+    id: zone1
+    on_turn_on:
+      if:
+        condition:
+        - switch.is_off: power
+        then:
+        - switch.turn_on: power
+    on_turn_off:
+      if:
+        condition:
+        - switch.is_off: zone2
+        - switch.is_off: zone3
+        - switch.is_off: zone4
+        - switch.is_off: zone5
+        - switch.is_off: zone6
+        then:
+        - switch.turn_off: power
+
+  - platform: gpio
+    name: "Sprinkler Zone 1 - Front DRIP"
+    pin:
+      number: GPIO25
+      inverted: True    
+    icon: "mdi:water-pump"
+    restore_mode: ALWAYS_OFF
+    id: zone2
+    on_turn_on:
+      if:
+        condition:
+        - switch.is_off: power
+        then:
+        - switch.turn_on: power
+    on_turn_off:
+      if:
+        condition:
+        - switch.is_off: zone1
+        - switch.is_off: zone3
+        - switch.is_off: zone4
+        - switch.is_off: zone5
+        - switch.is_off: zone6
+        then:
+        - switch.turn_off: power
+
+  - platform: gpio
+    name: "Sprinkler Zone 5 - North DRIP"
+    pin:
+      number: GPIO26
+      inverted: True    
+    icon: "mdi:water-pump"
+    restore_mode: ALWAYS_OFF
+    id: zone3
+    on_turn_on:
+      if:
+        condition:
+        - switch.is_off: power
+        then:
+        - switch.turn_on: power
+    on_turn_off:
+      if:
+        condition:
+        - switch.is_off: zone1
+        - switch.is_off: zone2
+        - switch.is_off: zone4
+        - switch.is_off: zone5
+        - switch.is_off: zone6
+        then:
+        - switch.turn_off: power
+
+  - platform: gpio
+    name: "Sprinkler Zone 3 - East Grass"
+    pin:
+      number: GPIO27
+      inverted: True    
+    icon: "mdi:water-pump"
+    restore_mode: ALWAYS_OFF
+    id: zone4
+    on_turn_on:
+      if:
+        condition:
+        - switch.is_off: power
+        then:
+        - switch.turn_on: power
+    on_turn_off:
+      if:
+        condition:
+        - switch.is_off: zone1
+        - switch.is_off: zone2
+        - switch.is_off: zone3
+        - switch.is_off: zone5
+        - switch.is_off: zone6
+        then:
+        - switch.turn_off: power
+        
+  - platform: gpio
+    name: "Sprinkler Zone 2 - Mid Grass"
+    pin:
+      number: GPIO14
+      inverted: True    
+    icon: "mdi:water-pump"
+    restore_mode: ALWAYS_OFF
+    id: zone5
+    on_turn_on:
+      if:
+        condition:
+        - switch.is_off: power
+        then:
+        - switch.turn_on: power
+    on_turn_off:
+      if:
+        condition:
+        - switch.is_off: zone1
+        - switch.is_off: zone2
+        - switch.is_off: zone3
+        - switch.is_off: zone4
+        - switch.is_off: zone6
+        then:
+        - switch.turn_off: power
+        
+  - platform: gpio
+    name: "Sprinkler Zone 6 - Spare"
+    pin:
+      number: GPIO32
+      inverted: True    
+    icon: "mdi:water-pump"
+    restore_mode: ALWAYS_OFF
+    id: zone6
+    on_turn_on:
+      if:
+        condition:
+        - switch.is_off: power
+        then:
+        - switch.turn_on: power
+    on_turn_off:
+      if:
+        condition:
+        - switch.is_off: zone1
+        - switch.is_off: zone2
+        - switch.is_off: zone3
+        - switch.is_off: zone4
+        - switch.is_off: zone5
+        then:
+        - switch.turn_off: power
+
+
+  - platform: gpio
+    name: "Sprinkler - 24v AC Power"
+    pin:
+      number: GPIO33
+      inverted: True    
+    restore_mode: ALWAYS_OFF
+    id: power
+#    internal: True
+    on_turn_on:
+    - delay: 90min
+    - switch.turn_off: power
+
+
+  - platform: gpio
+    name: "Pond Pump"
+    pin:
+      number: GPIO15
+      inverted: True
+    icon: "mdi:fountain"
+    restore_mode: ALWAYS_OFF
+    id: pond
+#    internal: True
+    on_turn_on:
+    - delay: 120min
+    - switch.turn_off: pond
+
+
+## https://esphome.io/components/sensor/xiaomi_miflora.html
+#esp32_ble_tracker:
+#    scan_parameters:
+#      active: false
+#      #duration: 5s
+#
+sensor:
+#  - platform: xiaomi_hhccjcy01
+#    mac_address: C4:7C:8D:6A:AF:ED
+#    temperature:
+#      name: "Flora Temperature"
+#    moisture:
+#      name: "Flora Moisture"
+#    illuminance:
+#      name: "Flora Illuminance"
+#    conductivity:
+#      name: "Flora Soil Conductivity"
+##    #battery_level:
+##    #  name: "Flora Battery Level"
+
+# https://community.home-assistant.io/t/using-esphome-to-build-a-water-flow-rate-meter/119380/12
+# https://community.home-assistant.io/t/using-esphome-to-build-a-water-flow-rate-meter/119380/29
+  - platform: pulse_counter
+    pin: GPIO2
+    name: "Sprinkler Water Flow"
+    update_interval: 30s
+    unit_of_measurement: "L/hr" 
+    icon: "mdi:water"
+    accuracy_decimals: 1
+    filters:
+    - lambda: return ((x / 100.0) * 60);
+#    - lambda: return ((x / 8.0) * 60); #F=(8*Q-4)±5%，F:frequency Q:L/Min
+    
+# Capacitive Analog Soil Moisture Sensor    
+# https://esphome.io/components/sensor/adc.html?highlight=attenuation
+  - platform: adc
+    pin: GPIO34
+    name: "Soil Moisture Level"
+    update_interval: 300s
+    unit_of_measurement: "%"
+    icon: "mdi:flower-outline"
+    accuracy_decimals: 4
+    attenuation: 11db #can measure 3.9v
+#    filters:
+#    - calibrate_linear:
+#        - 0.38 -> 100
+#        - 0.7 -> 0

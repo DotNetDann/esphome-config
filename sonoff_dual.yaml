@@ -1,0 +1,127 @@
+# ------------------------------
+# ---- Sonoff Dual R2 ----
+# ------------------------------
+#GPIO0	Button 0 on header
+#GPIO3	Serial Rx and Optional Sensor
+#GPIO1	Serial Tx and Optional Sensor
+#GPIO5	Relay 2 (RED LED)
+#GPIO9	Button 1 on header
+#GPIO10	Button on Case
+#GPIO12	Relay 1 (GREEN LED)
+#GPIO13	Blue Led (Inverted)
+
+esphome:
+  name: sonoff_dual
+  platform: ESP8266
+  board: esp01_1m
+
+wifi:
+  #power_save_mode: light # power reduced from ?.?w to ?.?w
+  #fast_connect: true
+  networks:
+  - ssid: !secret wifi_ssid
+    password: !secret wifi_password
+    hidden: True
+  manual_ip:
+    static_ip: !secret ip_sonoff_dual
+    gateway: !secret ip_gateway
+    subnet: 255.255.255.0
+  ap: # Enable fallback hotspot (captive portal) in case wifi connection fails
+    ssid: "TankMinder Fallback Hotspot"
+    password: !secret password
+
+captive_portal:
+
+mqtt:
+  broker: !secret mqtt_host
+  username: !secret mqtt_username
+  password: !secret mqtt_password
+  reboot_timeout: 0s # Dont reboot..
+
+# Enable logging
+logger:
+  baud_rate: 0 # So we can use the RX and TX pins
+
+# Enable Home Assistant API
+api:
+  password: !secret password
+  reboot_timeout: 0s # Dont reboot..
+
+ota:
+  password: !secret password
+
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO0
+      mode: INPUT_PULLUP
+      inverted: True
+    name: "Water Tank Pump On" # Button 0
+    device_class: moisture
+    filters:
+      - delayed_on: 10ms
+      - delayed_off: 10ms
+      
+  - platform: gpio
+    pin:
+      number: GPIO9 # Button 1
+      mode: INPUT_PULLUP
+      inverted: True
+    name: "Water Tank Rain Water"
+    filters:
+      - delayed_on: 10ms
+      - delayed_off: 10ms
+
+  - platform: gpio
+    pin:
+      number: GPIO10 # Case Button
+      mode: INPUT_PULLUP
+      inverted: True
+    name: "Water Tank Mains Water"
+    filters:
+      - delayed_on: 10ms
+      - delayed_off: 10ms
+
+  - platform: gpio
+    pin:
+      number: GPIO13
+      mode: INPUT_PULLUP
+      inverted: True
+    name: "Water Tank Warning" # Blue LED
+    device_class: safety
+    filters:
+      - delayed_on: 10ms
+      - delayed_off: 10ms
+
+
+# https://blog.lesman.com/2012/01/27/best-location-for-installing-ultrasonic-level-transducer/
+sensor:
+
+  - platform: ultrasonic
+    trigger_pin: GPIO2
+    echo_pin: GPIO5
+    name: "Level"
+    update_interval: 3s
+    pulse_time: 20us
+#    filters:
+#    - offset: 2.0
+#    - multiply: 1.2
+#    update_interval: 6h
+    filters:
+    - lambda: return 3000 - ((x / 1.5) * 3000.0);
+    unit_of_measurement: "L"
+    
+    
+
+
+
+
+switch:
+  - platform: gpio
+    name: "Water Tank Relay 1" #Green Led
+    pin: GPIO12
+    id: relay1
+  - platform: gpio
+    name: "Water Tank Relay 2" #Red Led
+    pin: GPIO05
+    id: relay2
