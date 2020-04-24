@@ -1,10 +1,19 @@
 # -------------------------------------
 # ---- Implemented on my LED Strip board in bedroom headboard ----
 # -------------------------------------
+
 esphome:
   name: bedroom_strip
   platform: ESP8266
   board: nodemcuv2
+
+  on_boot:
+    priority: -10
+    then:
+      - delay: 2s
+      - light.turn_off: leds
+      - delay: 500ms
+      - switch.turn_on: mosfet
 
 wifi:
   reboot_timeout: 0s  # Dont reboot..
@@ -29,18 +38,24 @@ mqtt:
   username: !secret mqtt_username
   password: !secret mqtt_password
   reboot_timeout: 0s # Dont reboot..
+  discovery: false # They need to run the MQTT message so the mosfet works
+  on_json_message:
+    - topic: bedroom_strip/light/lightstrip/command
+      then:
+        - if:
+            condition:
+              lambda: 'return (x["state"] == "OFF");'
+            then:
+              - switch.turn_on: mosfet
+            else: 
+              - switch.turn_off: mosfet
+                
 
 # Enable logging
 logger:
 
-# Enable Home Assistant API
-api:
-  password: !secret password
-  reboot_timeout: 0s # Dont reboot..
-
 ota:
-  password: !secret password  
-
+  password: !secret password
 
 # Dam thing always flashes
 #status_led:
@@ -53,9 +68,14 @@ light:
     type: RGB #GRB??
 #    variant: WS2811 #Needed??
     pin: GPIO3 #Solder time
-    power_supply: mosfet
+    
+#  - platform: fastled_clockless
+#    chipset: WS2811
+#    pin: GPIO15
+#    rgb_order: RGB
+
     num_leds: 40
-    name: Bed Lightstrip LED
+    name: lightstrip
     id: leds
     effects:
       - flicker:
@@ -69,15 +89,12 @@ light:
       - addressable_random_twinkle:
       - addressable_fireworks:
       - addressable_flicker:
-
-# https://esphome.io/components/power_supply.html
-power_supply:
-  - id: mosfet
-    enable_time: 50ms
-    keep_on_time: 2s
-    pin:
-      number: GPIO13
-      inverted: true
+      
+    
+switch:
+  - platform: gpio
+    pin: GPIO13
+    id: mosfet
 
 binary_sensor:
   - platform: gpio

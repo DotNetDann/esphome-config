@@ -1,0 +1,94 @@
+esphome:
+  name: sonoff_b1
+  platform: ESP8266
+  board: esp01_1m
+
+wifi:
+  reboot_timeout: 0s  # Dont reboot..
+  #power_save_mode: light # power reduced from 1.2w to 0.8w
+  #fast_connect: true
+  networks:
+  - ssid: !secret wifi_ssid
+    password: !secret wifi_password
+    hidden: True
+  manual_ip:
+    static_ip: !secret ip_sonoffb1
+    gateway: !secret ip_gateway
+    subnet: 255.255.255.0
+  ap: # Enable fallback hotspot (captive portal) in case wifi connection fails
+    ssid: "SonoffB1 Fallback Hotspot"
+    password: !secret password
+
+captive_portal:
+
+mqtt:
+  broker: !secret mqtt_host
+  username: !secret mqtt_username
+  password: !secret mqtt_password
+  reboot_timeout: 0s # Dont reboot..
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  password: !secret password
+  reboot_timeout: 0s # Dont reboot..
+
+ota:
+  password: !secret password  
+
+web_server:
+  port: 80
+  auth:
+    username: admin
+    password: !secret password
+
+
+#https://esphome.io/components/output/my9231.html
+my9231:
+  data_pin: GPIO12  # GPIO13 for AiLight
+  clock_pin: GPIO14  # GPIO15 for AiLight
+  num_channels: 6
+  num_chips: 2
+  bit_depth: 8
+
+output:
+  - platform: my9231
+    id: output_blue
+    channel: 0
+  - platform: my9231
+    id: output_red
+    channel: 1
+  - platform: my9231
+    id: output_green
+    channel: 2
+  - platform: my9231
+    id: output_warm_white
+    channel: 4
+  - platform: my9231
+    id: output_cold_white
+    channel: 5
+
+light:
+  - platform: rgbww
+    name: "SonoffB1 LED"
+    red: output_red
+    green: output_green
+    blue: output_blue
+    cold_white: output_cold_white
+    warm_white: output_warm_white
+    cold_white_color_temperature: 6500 K
+    warm_white_color_temperature: 2800 K
+    effects:
+      - strobe:
+      - flicker:
+      - random:
+      - random:
+          name: "My Slow Random Effect"
+          transition_length: 30s
+          update_interval: 30s
+      - random:
+          name: "My Fast Random Effect"
+          transition_length: 4s
+          update_interval: 5s    
