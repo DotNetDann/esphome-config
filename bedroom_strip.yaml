@@ -1,13 +1,13 @@
 # -------------------------------------
 # ---- Implemented on my LED Strip board in bedroom headboard ----
 # -------------------------------------
+
 esphome:
   name: bedroom_strip
   platform: ESP8266
   board: nodemcuv2
 
 wifi:
-  reboot_timeout: 0s  # Dont reboot..
   #power_save_mode: light # power reduced from 1.2w to 0.8w
   #fast_connect: true
   networks:
@@ -39,7 +39,13 @@ api:
   reboot_timeout: 0s # Dont reboot..
 
 ota:
-  password: !secret password  
+  password: !secret password
+
+web_server:
+  port: 80
+  auth:
+    username: admin
+    password: !secret password
 
 
 # Dam thing always flashes

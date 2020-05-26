@@ -1,0 +1,205 @@
+# -------------------------------------
+# ---- Shelly 2.5 unit ----
+# -------------------------------------
+# https://esphome.io/components/sensor/ade7953.html?highlight=shelly
+# https://github.com/brianhanifin/esphome-config/blob/master/shelly1_02.yaml?fbclid=IwAR2Ix3hlilQpX2nQMIUgYoXa55t9-rK4sxARm3vh38C82aSPKmFRTFwccWo
+
+substitutions:
+  devicename: bathroom_fan1
+  humidity_threshold: "65"
+  fanon_threshold: "3min"
+  fanon_mins: "15min"
+
+esphome:
+  name: "${devicename}"
+  platform: ESP8266
+  board: esp01_1m
+
+wifi:
+  #power_save_mode: light # power reduced from ?.?w to ?.?w
+  #fast_connect: true
+  networks:
+  - ssid: !secret wifi_ssid
+    password: !secret wifi_password
+    hidden: True
+  manual_ip:
+    static_ip: !secret ip_bathroom_fan1
+    gateway: !secret ip_gateway
+    subnet: 255.255.255.0
+  ap: # Enable fallback hotspot (captive portal) in case wifi connection fails
+    ssid: "${devicename} Fallback Hotspot"
+    password: !secret password
+
+captive_portal:
+
+mqtt:
+  broker: !secret mqtt_host
+  username: !secret mqtt_username
+  password: !secret mqtt_password
+  reboot_timeout: 0s # Dont reboot..
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  password: !secret password
+  reboot_timeout: 0s # Dont reboot..
+
+ota:
+  password: !secret password
+
+web_server:
+  port: 80
+  auth:
+    username: admin
+    password: !secret password
+
+
+
+i2c:
+  sda: GPIO12
+  scl: GPIO14
+
+status_led:
+  pin:
+    number: GPIO0
+    inverted: yes
+
+
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO13
+    id: switchA
+    name: "${devicename} Switch A"
+    filters:
+      - delayed_on: 10ms
+      - delayed_off: 10ms
+    on_state:
+      then:
+        - if:
+            condition:
+              - binary_sensor.is_on: switchA
+            then:
+            - switch.turn_on: switch1_relay
+        - if:
+            condition:
+              and:
+              - binary_sensor.is_off: switchA
+            then:
+            - switch.turn_off: switch1_relay
+
+  - platform: gpio
+    pin:
+      number: GPIO5
+    id: switchB
+    name: "${devicename} Switch B"
+    filters:
+      - delayed_on: 10ms
+      - delayed_off: 10ms
+    on_state:
+      then:
+        - if:
+            condition:
+              - binary_sensor.is_on: switchB
+            then:
+              - switch.turn_on: switch2_relay
+            else:
+              if:
+                condition:
+                  for:
+                    time: ${fanon_threshold}
+                    condition:
+                      switch.is_on: switch2_relay
+                then:
+                  - delay: ${fanon_mins}
+                  - switch.turn_off: switch2_relay      
+                else:
+                  - switch.turn_off: switch2_relay      
+                
+            
+
+#        #If it has been on for more than 3min then 
+#        - if:
+#            condition:
+#              and:
+#              - binary_sensor.is_off: switchB
+#              - lambda: 'return id(externalHumidity).state <= $humidity_threshold;'
+#            then:
+#            - switch.turn_off: switch2_relay
+#        - if:
+#            condition:
+#              and:
+#              - binary_sensor.is_off: switchB
+#              - lambda: 'return id(externalHumidity).state > $humidity_threshold;'
+#            then:
+#            - delay: ${fanon_mins}
+#            - switch.turn_off: switch2_relay
+
+
+
+sensor:
+  - platform: ade7953 #https://esphome.io/components/sensor/ade7953.html?highlight=shelly
+    voltage:
+      name: "${devicename} Voltage"
+    current_a:
+      name: "${devicename} Current B"
+    current_b:
+      name: "${devicename} Current A"
+    active_power_a:
+      name: "${devicename} Active Power B"
+      filters:
+        - multiply: -1
+    active_power_b:
+      name: "${devicename} Active Power A"
+      filters:
+        - multiply: -1
+    update_interval: 60s
+
+  # NTC Temperature
+  - platform: ntc
+    sensor: temp_resistance_reading
+    name: "${devicename} Temperature"
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    icon: mdi:thermometer
+    calibration:
+      b_constant: 3350
+      reference_temperature: 25°C
+      reference_resistance: 10kOhm
+
+  - platform: resistance
+    id: temp_resistance_reading
+    sensor: temp_analog_reading
+    configuration: DOWNSTREAM
+    resistor: 32kOhm
+    
+  - platform: adc
+    id: temp_analog_reading
+    pin: A0
+
+  - platform: dht
+    pin: GPIO0
+    model: AM2302
+    temperature:
+      name: "${devicename} External Temperature"
+    humidity:
+      id: externalHumidity
+      name: "${devicename} External Humidity"
+    #update_interval: 5min
+
+switch:
+  - platform: gpio
+    id: switch1_relay
+    name: "${devicename} Relay A"
+    pin: GPIO4
+    icon: "mdi:electric-switch"
+    restore_mode: RESTORE_DEFAULT_OFF    
+
+  - platform: gpio
+    id: switch2_relay
+    name: "${devicename} Relay B"
+    pin: GPIO15
+    icon: "mdi:electric-switch"
+    restore_mode: RESTORE_DEFAULT_OFF    

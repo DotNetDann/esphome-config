@@ -1,10 +1,13 @@
+# -------------------------------------
+# ---- Implemented on Brilliant LED Controller in rear garden ----
+# -------------------------------------
+
 esphome:
   name: brilliant_garden_7946
   platform: ESP8266
   board: esp01_1m
 
 wifi:
-  reboot_timeout: 0s  # Dont reboot..
   #power_save_mode: light # power reduced from 1.2w to 0.8w
   #fast_connect: true
   networks:
@@ -36,7 +39,7 @@ api:
   reboot_timeout: 0s # Dont reboot..
 
 ota:
-  password: !secret password  
+  password: !secret password
 
 web_server:
   port: 80

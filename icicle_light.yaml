@@ -1,3 +1,7 @@
+# -------------------------------------
+# ---- Implemented on Mirabella Genio Icicle Controller ----
+# -------------------------------------
+
 esphome:
   name: icicle_light
   platform: ESP8266
@@ -6,8 +10,7 @@ esphome:
     - HBridgeLightOutput.h
 
 wifi:
-  reboot_timeout: 0s  # Dont reboot..
-  power_save_mode: light # power reduced from 1.2w to 0.8w
+  #power_save_mode: light # power reduced from 1.2w to 0.8w
   #fast_connect: true
   networks:
   - ssid: !secret wifi_ssid
@@ -28,13 +31,14 @@ mqtt:
   username: !secret mqtt_username
   password: !secret mqtt_password
   reboot_timeout: 0s # Dont reboot..
-  discovery: true # They need to run the MQTT message so the mosfet works
-  
+
 # Enable logging
 logger:
 
-ota:
+# Enable Home Assistant API
+api:
   password: !secret password
+  reboot_timeout: 0s # Dont reboot..
 
 web_server:
   port: 80
