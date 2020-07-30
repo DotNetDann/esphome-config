@@ -1,0 +1,239 @@
+# -------------------------------------
+# ---- Garage Door module ----
+# -------------------------------------
+
+substitutions:
+  open_combo: !secret open_combo
+  distance_door_open: "0.7"
+  distance_car: "1.3"
+  
+esphome:
+  name: garage_door
+  platform: ESP8266
+#  board: d1_mini
+  board: nodemcuv2
+
+wifi:
+  #power_save_mode: light # power reduced from 1.2w to 0.8w
+  #fast_connect: true
+  networks:
+  - ssid: !secret wifi_ssid
+    password: !secret wifi_password
+    hidden: True
+  manual_ip:
+    static_ip: !secret ip_garage_door
+    gateway: !secret ip_gateway
+    subnet: 255.255.255.0
+  ap: # Enable fallback hotspot (captive portal) in case wifi connection fails
+    ssid: "GarageDoor Fallback Hotspot"
+    password: !secret password
+
+captive_portal:
+
+mqtt:
+  broker: !secret mqtt_host
+  username: !secret mqtt_username
+  password: !secret mqtt_password
+  reboot_timeout: 0s # Dont reboot..
+  discovery: true
+
+
+# Enable logging
+logger:
+
+ota:
+  password: !secret password
+
+# Dam thing always flashes
+#status_led:
+#  pin:
+#    number: GPIO16
+#    inverted: True
+
+# https://blog.lesman.com/2012/01/27/best-location-for-installing-ultrasonic-level-transducer/
+sensor:
+  - platform: ultrasonic
+    id: door1_ultrasonic
+    name: "Garage 1 Distance"
+    trigger_pin: GPIO14 # D4 on ESP8266
+    echo_pin: GPIO4 # D2 on ESP8266
+    update_interval: 10s
+    pulse_time: 15us
+    timeout: 3m
+    filters:
+      - filter_out: nan
+    
+  - platform: ultrasonic
+    id: door2_ultrasonic
+    name: "Garage 2 Distance"
+    trigger_pin: GPIO14 # D4 on ESP8266
+    echo_pin: GPIO5 # D1 on ESP8266
+    update_interval: 10s
+    pulse_time: 15us
+    timeout: 3m
+    filters:
+      - filter_out: nan
+
+  - platform: ultrasonic
+    id: door3_ultrasonic
+    name: "Garage 3 Distance"
+    trigger_pin: GPIO14 # D4 on ESP8266
+    echo_pin: GPIO0 # D3 on ESP8266
+    update_interval: 10s
+    pulse_time: 15us
+    timeout: 3m
+    filters:
+      - filter_out: nan
+
+  - platform: dht
+    pin: GPIO13 # D7 on ESP8266
+    model: AM2302
+    temperature:
+      name: "Garage Temperature"
+    humidity:
+      name: "Garage Humidity"
+    update_interval: 5min
+
+
+
+switch:
+  - platform: gpio
+    id: door1_relay
+    #name: "Garage 1 Relay" #Do not set a name and it will keep internal
+    internal: True
+    pin:
+#      number: GPIO12 # D6 on ESP8266
+      number: GPIO10 # SD3 on ESP8266
+      inverted: True
+    
+  - platform: gpio
+    id: door2_relay
+    #name: "Garage 2 Relay" #Do not set a name and it will keep internal
+    internal: True
+    pin:
+      number: GPIO3 # RX on ESP8266
+      inverted: True
+
+  - platform: gpio
+    id: door3_relay
+    #name: "Garage 3 Relay" #Do not set a name and it will keep internal
+    internal: True
+    pin:
+      number: GPIO12 # D6 on ESP8266
+      inverted: True
+
+cover:
+  - platform: template
+    id: door1_cover
+    name: "Garage 1 Door"
+    device_class: garage
+    lambda: |-
+      if (id(door1_ultrasonic).state < $distance_door_open) {
+        return COVER_OPEN;
+      } else {
+        return COVER_CLOSED;
+      }
+    optimistic: true
+    close_action:
+      if:
+        condition:
+          lambda: 'return (id(door1_cover).position == COVER_OPEN);'
+        then:
+          - logger.log: "Door1 Closing!"
+          - switch.turn_on: door1_relay
+          - delay: 0.1s
+          - switch.turn_off: door1_relay
+        else:
+          - logger.log: "Door1 Not Open!"
+    
+  - platform: template
+    id: door2_cover
+    name: "Garage 2 Door"
+    device_class: garage
+    lambda: |-
+      if (id(door2_ultrasonic).state < $distance_door_open) {
+        return COVER_OPEN;
+      } else {
+        return COVER_CLOSED;
+      }
+    optimistic: true
+    close_action:
+      if:
+        condition:
+          lambda: 'return (id(door2_cover).position == COVER_OPEN);'
+        then:
+          - logger.log: "Door2 Closing!"
+          - switch.turn_on: door2_relay
+          - delay: 0.1s
+          - switch.turn_off: door2_relay
+        else:
+          - logger.log: "Door2 Not Open!"
+    
+  - platform: template
+    id: door3_cover
+    name: "Garage 3 Door"
+    device_class: garage
+    lambda: |-
+      if (id(door3_ultrasonic).state < $distance_door_open) {
+        return COVER_OPEN;
+      } else {
+        return COVER_CLOSED;
+      }
+    optimistic: true
+    close_action:
+      if:
+        condition:
+          lambda: 'return (id(door3_cover).position == COVER_OPEN);'
+        then:
+          - logger.log: "Door3 Closing!"
+          - switch.turn_on: door3_relay
+          - delay: 0.1s
+          - switch.turn_off: door3_relay
+        else:
+          - logger.log: "Door3 Not Open!"
+          
+binary_sensor:
+  - platform: template
+    name: "Garage 1 Car"
+    device_class: presence
+    lambda: |-
+      if (id(door1_ultrasonic).state < $distance_door_open) {
+        // door open and cannot check for car
+        return {};
+      } else if (id(door1_ultrasonic).state < $distance_car) {
+        // car is in the garage
+        return true;
+      } else {
+        // no car
+        return false;
+      }
+      
+  - platform: template
+    name: "Garage 2 Car"
+    device_class: presence
+    lambda: |-
+      if (id(door2_ultrasonic).state < $distance_door_open) {
+        // door open and cannot check for car
+        return {};
+      } else if (id(door2_ultrasonic).state < $distance_car) {
+        // car is in the garage
+        return true;
+      } else {
+        // no car
+        return false;
+      }
+      
+  - platform: template
+    name: "Garage 3 Car"
+    device_class: presence
+    lambda: |-
+      if (id(door3_ultrasonic).state < $distance_door_open) {
+        // door open and cannot check for car
+        return {};
+      } else if (id(door3_ultrasonic).state < $distance_car) {
+        // car is in the garage
+        return true;
+      } else {
+        // no car
+        return false;
+      }
