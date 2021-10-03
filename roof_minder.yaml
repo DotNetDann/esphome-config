@@ -1,8 +1,8 @@
 # -------------------------------------
-# ---- Implemented on ESP07 in Box ----
+# ---- Implemented on ESP07 in Roof ----
 # -------------------------------------
 substitutions:
-  devicename: wine_minder
+  devicename: roof_minder
 
 esphome:
   name: ${devicename}
@@ -18,7 +18,7 @@ wifi:
     password: !secret wifi_password
     hidden: True
   manual_ip:
-    static_ip: !secret ip_wine_minder
+    static_ip: !secret ip_roof_minder
     gateway: !secret ip_gateway
     subnet: 255.255.255.0
   domain: .homelan
@@ -54,28 +54,10 @@ web_server:
 
 sensor:
   - platform: dht
-    pin: GPIO4
+    pin: GPIO12
     model: AM2302
     temperature:
-      name: "Box Outside Temperature"
+      name: "Roof Temperature"
     humidity:
-      name: "Box Outside Humidity"
-    update_interval: 1min
-
-  - platform: dht
-    pin: GPIO0
-    model: AM2302
-    temperature:
-      name: "Box Bottom Temperature"
-    humidity:
-      name: "Box Bottom Humidity"
-    update_interval: 5min
-
-  - platform: dht
-    pin: GPIO3
-    model: AM2302
-    temperature:
-      name: "Box Top Temperature"
-    humidity:
-      name: "Box Top Humidity"
+      name: "Roof Humidity"
     update_interval: 5min

@@ -1,9 +1,11 @@
 # -------------------------------------
 # ---- Implemented on my LED Strip board in bedroom headboard ----
 # -------------------------------------
+substitutions:
+  devicename: bedroom_strip
 
 esphome:
-  name: bedroom_strip
+  name: ${devicename}
   platform: ESP8266
   board: nodemcuv2
 
@@ -18,17 +20,18 @@ wifi:
     static_ip: !secret ip_bedroom_strip
     gateway: !secret ip_gateway
     subnet: 255.255.255.0
+  domain: .homelan
   ap: # Enable fallback hotspot (captive portal) in case wifi connection fails
-    ssid: "BedroomStrip Fallback Hotspot"
+    ssid: "${devicename} Hotspot"
     password: !secret password
 
 captive_portal:
 
-mqtt:
-  broker: !secret mqtt_host
-  username: !secret mqtt_username
-  password: !secret mqtt_password
-  reboot_timeout: 0s # Dont reboot..
+#mqtt:
+#  broker: !secret mqtt_host
+#  username: !secret mqtt_username
+#  password: !secret mqtt_password
+#  reboot_timeout: 0s # Dont reboot..
 
 # Enable logging
 logger:

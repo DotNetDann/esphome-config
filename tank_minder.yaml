@@ -2,9 +2,11 @@
 # ---- Implemented on D1 mini on side of external water tank ----
 # ---- v1.2
 # -------------------------------------
+substitutions:
+  devicename: tank_minder
 
 esphome:
-  name: tank_minder
+  name: ${devicename}
   platform: ESP8266
   board: esp01_1m
 
@@ -19,17 +21,18 @@ wifi:
     static_ip: !secret ip_tank_minder
     gateway: !secret ip_gateway
     subnet: 255.255.255.0
+  domain: .homelan
   ap: # Enable fallback hotspot (captive portal) in case wifi connection fails
-    ssid: "TankMinder Fallback Hotspot"
+    ssid: "${devicename} Hotspot"
     password: !secret password
 
 captive_portal:
 
-mqtt:
-  broker: !secret mqtt_host
-  username: !secret mqtt_username
-  password: !secret mqtt_password
-  reboot_timeout: 0s # Dont reboot..
+#mqtt:
+#  broker: !secret mqtt_host
+#  username: !secret mqtt_username
+#  password: !secret mqtt_password
+#  reboot_timeout: 0s # Dont reboot..
 
 # Enable logging
 logger:
@@ -58,13 +61,17 @@ i2c:
 ads1115: #https://esphome.io/components/sensor/ads1115.html
   - address: 0x48
 
+dallas:
+  - pin: GPIO12
+
+# Used a '5V DC Pressure Transducer Sensor 0-1.2 MPa Oil Fuel Diesel Gas Water Air' = 174psi - 60PSI would prbably be ok but use a 100PSI just in case
 sensor:
   - platform: ads1115
     id: adclevel
     multiplexer: 'A0_GND'
 #    gain: 6.144 #(measures up to 6.144V)
-#    gain: 4.096 #(measures up to 4.096V)
-    gain: 2.048 #(measures up to 2.048V) #Full hose pressure is just shy of 2v
+#    gain: 4.096 #(measures up to 4.096V) # Full hose pressure is around 3.1v (100PSI)
+    gain: 2.048 #(measures up to 2.048V) # Full hose pressure is just shy of 2v (1.2MPa)
 #    gain: 1.024 #(measures up to 1.024V)
 #    gain: 0.512 #(measures up to 0.512V)
 #    gain: 0.256 #(measures up to 0.256V)    
@@ -72,13 +79,14 @@ sensor:
     icon: "mdi:cup-water"
     accuracy_decimals: 0
     unit_of_measurement: "L"
-    update_interval: 2min
-#    update_interval: 30s
+#    update_interval: 2min
+    update_interval: 30s
     filters:
     - calibrate_linear: # https://esphome.io/components/sensor/index.html#sensor-filters
-#     Map 0.0 (from sensor) to 0.0 (true value)  
-      - 0.490 -> 0.0 # Empty Value
-      - 0.547 -> 3000.0 # Full Value
+#      - 0.490 -> 0.0 # Empty Value     (100PSI)
+#      - 0.848 -> 3000.0 # Full Value   (100PSI)
+      - 0.490 -> 0.0 # Empty Value     (1.2MPa)
+      - 0.548 -> 3000.0 # Full Value   (1.2MPa)
 #    - median:
 #        window_size: 10
 #        send_every: 5
@@ -92,7 +100,9 @@ sensor:
     lambda: |-
       return ((id(adclevel).state / 3000) * 100.00);
 
-
+  - platform: dallas
+    address: 0xDE3C01D607548128
+    name: "Outside Temperature"
 
 
 #binary_sensor:

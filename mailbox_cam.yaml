@@ -1,0 +1,239 @@
+# -------------------------------------
+# ---- Implemented on ESP32-Cam board in Mailbox ----
+# -------------------------------------
+# 3.33mA in sleep
+
+#https://www.rogerfrost.com/step-3a-esphome-and-esp32-devices/
+#https://github.com/esphome/feature-requests/issues/547
+#https://community.home-assistant.io/t/deep-sleep-and-multiple-buttons/167214/11
+
+substitutions:
+  devicename: mailbox_cam
+
+esphome:
+  name: ${devicename}
+  platform: ESP32
+  board: esp32cam
+#  on_boot:
+#    priority: 900
+#    then:
+#      lambda: |-
+#        id(wake_up_reason) = esp_sleep_get_wakeup_cause();
+#        id(wake_up_reason2) = esp_sleep_get_ext1_wakeup_status();
+
+#globals:
+#  - id: wake_up_reason
+#    type: int
+#    restore_value: no
+#    initial_value: '0'
+#  - id: wake_up_reason2
+#    type: int
+#    restore_value: no
+#    initial_value: '0'
+
+wifi:
+  #power_save_mode: light # power reduced from ?.?w to ?.?w
+  fast_connect: true
+  networks:
+  - ssid: !secret wifi_ssid
+    password: !secret wifi_password
+    hidden: True
+  manual_ip:
+    static_ip: !secret ip_mailbox_cam
+    gateway: !secret ip_gateway
+    subnet: 255.255.255.0
+  domain: .homelan
+#  ap: # Enable fallback hotspot (captive portal) in case wifi connection fails
+#    ssid: "${devicename} Hotspot"
+#    password: !secret password
+#
+#captive_portal:
+
+mqtt:
+  broker: !secret mqtt_host
+  username: !secret mqtt_username
+  password: !secret mqtt_password
+  reboot_timeout: 0s # Dont reboot..
+  discovery: true
+  on_message:
+    - topic: ${devicename}/ota_mode
+      payload: 'ON'
+      then:
+        - deep_sleep.prevent: deep_sleep_1
+    - topic: ${devicename}/sleep_mode
+      payload: 'ON'
+      then:
+        - deep_sleep.enter: deep_sleep_1
+  on_json_message:
+    - topic: ${devicename}/sleep_min # NOTE: This is for the next sleep evernt ONLY!!
+      then:
+        - lambda: |-
+            int min = x["min"];
+            id(deep_sleep_1).set_sleep_duration(min * 60 * 1000);
+
+
+# Dont enable logging. Faster??
+#logger:
+
+# Dont enable Home Assistant API with deep sleep
+#api:
+#  password: !secret password
+#  reboot_timeout: 0s # Dont reboot..
+
+ota:
+  password: !secret password
+
+web_server:
+  port: 80
+  auth:
+    username: admin
+    password: !secret password
+
+#Configuration for Ai-Thinker Camera
+esp32_webcam:
+   external_clock:
+     pin: GPIO0
+     frequency: 20MHz
+   i2c_pins:
+     sda: GPIO26
+     scl: GPIO27
+   data_pins: [GPIO5, GPIO18, GPIO19, GPIO21, GPIO36, GPIO39, GPIO34, GPIO35]
+   vsync_pin: GPIO25
+   href_pin: GPIO23
+   pixel_clock_pin: GPIO22
+   power_down_pin: GPIO32
+   name: ${devicename} cam
+   resolution: 1024X768
+   #idle_framerate: 0.1fps #Max 0.1fps
+   #idle_framerate: 0.5fps #Max 0.1fps
+   #vertical_flip: true
+   #horizontal_mirror: true
+   
+#define PWDN_GPIO_NUM -1
+#define RESET_GPIO_NUM 15
+#define XCLK_GPIO_NUM 27
+#define SIOD_GPIO_NUM 25
+#define SIOC_GPIO_NUM 23
+#define Y9_GPIO_NUM 19
+#define Y8_GPIO_NUM 36
+#define Y7_GPIO_NUM 18
+#define Y6_GPIO_NUM 39
+#define Y5_GPIO_NUM 5
+#define Y4_GPIO_NUM 34
+#define Y3_GPIO_NUM 35
+#define Y2_GPIO_NUM 17
+#define VSYNC_GPIO_NUM 22
+#define HREF_GPIO_NUM 26
+#define PCLK_GPIO_NUM 21
+   
+
+
+output:
+  - platform: ledc
+    pin:
+      number: GPIO4
+#      mode: INPUT_PULLUP
+    channel: 2 # channel 1 is used for esp32_camera
+    id: led
+
+
+light:
+  - platform: monochromatic
+    output: led
+    default_transition_length: 0s
+    name: ${devicename} light
+    #10k to gnd
+
+sensor:
+  - platform: wifi_signal
+    name: ${devicename} wifi signal
+    update_interval: 60s
+
+#  - platform: uptime
+#    name: ${devicename} uptime
+#    update_interval: 3s
+
+#  - platform: template
+#    name: ${devicename} wake reason
+#    accuracy_decimals: 0
+#    lambda: |-
+#      return (id(wake_up_reason));
+
+#  - platform: template
+#    name: ${devicename} wake reason2
+#    lambda: |-
+#      int GPIO_reason = esp_sleep_get_ext1_wakeup_status();
+#      return ((log(GPIO_reason))/log(2));
+
+#  - platform: template
+#    name: ${devicename} wake reason3
+#    lambda: |-
+#      esp_sleep_wakeup_cause_t wakeup_reason = esp_sleep_get_wakeup_cause();
+#      return wakeup_reason;
+
+#  - platform: template
+#    name: ${devicename} wake reason4
+#    accuracy_decimals: 0
+#    lambda: |-
+#      return (id(wake_up_reason2));
+
+# 47k to Batt + and 47k to Gnd
+  - platform: adc
+    id: batt
+    pin: GPIO33
+    name: ${devicename} batt voltage
+    update_interval: 30s
+    attenuation: 11db
+    filters:
+    - multiply: 1.85
+#    - calibrate_linear:
+#      - 0.0 -> 3.0
+#      - 100.0 -> 4.2
+# Cuts off at 2.8v
+
+  - platform: template
+    name: ${devicename} batt level
+    unit_of_measurement: '%'
+    update_interval: 30s
+    lambda: |-
+      return (id(batt).state);
+    filters:
+    - calibrate_linear:
+      - 2.8 -> 0.0
+      - 4.2 -> 100.0
+
+
+#esp32_ext1_wakeup seems to save more energy then wakeup_pin
+deep_sleep:
+  id: deep_sleep_1
+  run_duration: 30sec
+  sleep_duration: 45min
+  esp32_ext1_wakeup:
+    pins: GPIO2
+    mode: ALL_LOW
+
+
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO2
+      inverted: True
+      mode: INPUT_PULLUP
+    name: ${devicename} notification
+    device_class: occupancy
+
+
+# NODE RED
+# on wake, take photo, send sleep command, process photo
+
+#GPIO1		TX
+#GPIO3		RX
+#GPIO0		GND for flashing
+#GPIO16		. Input (10k Ohm pull-up)
+#GPIO4		Onboard LED
+#GPIO2		.
+#GPIO14		.
+#GPIO15		.		pinMode(OUTPUT_OPEN_DRAIN, GPIO_NUM_15);
+#GPIO13		.
+#GPIO12		.		pinMode(OUTPUT_OPEN_DRAIN, GPIO_NUM_12);
+#GPIO33		Onboard LED

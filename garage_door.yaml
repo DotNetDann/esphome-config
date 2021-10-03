@@ -1,14 +1,14 @@
 # -------------------------------------
 # ---- Garage Door module ----
 # -------------------------------------
-
 substitutions:
+  devicename: garage_door
   open_combo: !secret open_combo
   distance_door_open: "0.7"
   distance_car: "1.3"
-  
+
 esphome:
-  name: garage_door
+  name: ${devicename}
   platform: ESP8266
 #  board: d1_mini
   board: nodemcuv2
@@ -24,8 +24,9 @@ wifi:
     static_ip: !secret ip_garage_door
     gateway: !secret ip_gateway
     subnet: 255.255.255.0
+  domain: .homelan
   ap: # Enable fallback hotspot (captive portal) in case wifi connection fails
-    ssid: "GarageDoor Fallback Hotspot"
+    ssid: "${devicename} Hotspot"
     password: !secret password
 
 captive_portal:

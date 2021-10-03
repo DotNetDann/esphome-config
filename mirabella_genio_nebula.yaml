@@ -1,0 +1,247 @@
+# -------------------------------------
+# ---- Implemented on Nebula ----
+# GPIO15 has a 4k to GND
+# -------------------------------------
+substitutions:
+  devicename: mirabella_genio_nebula
+
+esphome:
+  name: ${devicename}
+  platform: ESP8266
+  board: esp01_1m
+
+wifi:
+  #power_save_mode: light # power reduced from ?.?w to ?.?w
+  #fast_connect: true
+  networks:
+  - ssid: !secret wifi_ssid
+    password: !secret wifi_password
+    hidden: True
+  manual_ip:
+    static_ip: !secret ip_mirabella_genio_nebula
+    gateway: !secret ip_gateway
+    subnet: 255.255.255.0
+  domain: .homelan
+  ap: # Enable fallback hotspot (captive portal) in case wifi connection fails
+    ssid: "${devicename} Hotspot"
+    password: !secret password
+
+captive_portal:
+
+#mqtt:
+#  broker: !secret mqtt_host
+#  username: !secret mqtt_username
+#  password: !secret mqtt_password
+#  reboot_timeout: 0s # Dont reboot..
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  password: !secret password
+  reboot_timeout: 0s # Dont reboot..
+
+ota:
+  password: !secret password
+
+web_server:
+  port: 80
+  auth:
+    username: admin
+    password: !secret password
+
+
+
+
+output:
+  - platform: esp8266_pwm
+    pin: GPIO4
+    frequency: 1000 Hz
+    inverted: true
+    id: pwm_red
+    
+  - platform: esp8266_pwm
+    pin: GPIO12
+    frequency: 1000 Hz
+    inverted: true
+    id: pwm_green
+
+  - platform: esp8266_pwm
+    pin: GPIO14
+    frequency: 1000 Hz
+    inverted: true
+    id: pwm_blue
+
+  - platform: esp8266_pwm
+    pin: GPIO13
+    frequency: 1000 Hz
+#    max_power: 0.2
+#    min_power: 0.5 always running
+    id: pwm_motor
+
+  - platform: esp8266_pwm
+    pin: GPIO5
+    frequency: 1000 Hz
+    inverted: true
+#    max_power: 0.4
+    id: pwm_lazer
+
+
+  - platform: esp8266_pwm
+    pin: GPIO0
+    frequency: 1000 Hz
+    inverted: true
+    id: pwm_0
+
+
+light:
+  - platform: rgb
+    id: mainlight
+    name: "${devicename} Light"
+    red: pwm_red
+    green: pwm_green
+    blue: pwm_blue
+    # needs effect to SLOWLY change colors..
+    effects:
+      - random:
+      - random:
+          name: "Fast Random"
+          transition_length: 4s
+          update_interval: 5s
+      - random:
+          name: "Slow Random"
+          transition_length: 30s
+          update_interval: 30s
+      - random:
+          name: "Really Slow Random"
+          transition_length: 90s
+          update_interval: 90s
+      - strobe:
+          name: "Slow RGB"
+          colors:
+            - state: True
+              red: 100%
+              green: 0%
+              blue: 0%
+              duration: 5000ms
+            - state: True
+              red: 0%
+              green: 100%
+              blue: 0%
+              duration: 5000ms
+            - state: True
+              red: 0%
+              green: 0%
+              blue: 100%
+              duration: 5000ms
+      - flicker:
+          name: Flicker
+          alpha: 95%
+          intensity: 2.5%
+
+  - platform: monochromatic
+    id: lazerlight
+    output: pwm_lazer
+    name: "${devicename} Lazer"
+    
+  - platform: monochromatic
+    id: motorlight
+    name: "${devicename} Motor"
+    output: pwm_motor
+    #icon: "mdi:motor??"
+
+  - platform: monochromatic
+    id: buttonlight
+    name: "${devicename} Button"
+    output: pwm_0
+
+
+binary_sensor:
+  - platform: gpio
+    id: sidebutton
+    pin:
+      number: GPIO2
+      inverted: yes
+    name: "${devicename} Button"
+    on_multi_click:
+      - timing:
+        - ON for at most 1s
+        - OFF for at least 0.5s
+        then:
+          if:
+            condition:
+              light.is_on: buttonlight
+            then:
+              - light.turn_off: mainlight
+              - light.turn_off: buttonlight
+              - light.turn_off: lazerlight
+              - light.turn_off: motorlight
+            else:
+              - light.turn_on: buttonlight
+              - light.turn_on: 
+                  id: mainlight
+                  brightness: 50%
+                  effect: "Slow Random"
+              - light.turn_on: 
+                  id: motorlight
+                  brightness: 60%
+              - delay: 1h
+              - light.turn_off: mainlight
+              - light.turn_off: buttonlight
+              - light.turn_off: lazerlight
+              - light.turn_off: motorlight
+      - timing:
+        - ON for at most 1s
+        - OFF for at most 1s
+        - ON for at most 1s
+        - OFF for at most 1s        
+        - ON for at most 1s
+        - OFF for at least 0.5s
+        then:
+          - light.turn_on: buttonlight
+          - light.turn_on: 
+              id: mainlight
+              brightness: 50%
+              effect: "Slow Random"
+          - light.turn_on: 
+              id: motorlight
+              brightness: 60%
+          - light.turn_on: 
+              id: lazerlight
+              brightness: 63%
+          - delay: 1h
+          - light.turn_off: mainlight
+          - light.turn_off: buttonlight
+          - light.turn_off: lazerlight
+          - light.turn_off: motorlight
+      - timing:
+        - ON for at most 1s
+        - OFF for at most 1s
+        - ON for at most 1s
+        - OFF for at most 1s      
+        - ON for at most 1s
+        - OFF for at most 1s
+        - ON for at most 1s
+        - OFF for at least 0.5s
+        then:
+          - light.turn_on: buttonlight
+          - light.turn_on: 
+              id: motorlight
+              brightness: 60%
+          - light.turn_on: 
+              id: lazerlight
+              brightness: 63%
+          - delay: 1h
+          - light.turn_off: mainlight
+          - light.turn_off: buttonlight
+          - light.turn_off: lazerlight
+          - light.turn_off: motorlight
+
+
+
+status_led:
+  pin:
+    number: GPIO15
+    inverted: yes
+
