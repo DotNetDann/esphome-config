@@ -104,27 +104,27 @@ rf_bridge:
 #            root["low"] = lambda 'char buffer [10];return itoa(data.low,buffer,16);'
 #            root["high"] = lambda 'char buffer [10];return itoa(data.high,buffer,16);'
 #            root["code"] = lambda 'char buffer [10];return itoa(data.code,buffer,16);'
-      - if:
-          condition:
-            lambda: |-
-              return data.code == 0x6D8D11;
-          then:
-            - binary_sensor.template.publish:
-                id: doorbell
-                state: ON
-            - delay: 5s
-            - binary_sensor.template.publish:
-                id: doorbell
-                state: OFF
+#      - if:
+#          condition:
+#            lambda: |-
+#              return data.code == 0x6D8D11;
+#          then:
+#            - binary_sensor.template.publish:
+#                id: doorbell
+#                state: ON
+#            - delay: 5s
+#            - binary_sensor.template.publish:
+#                id: doorbell
+#                state: OFF
 
 binary_sensor:
   - platform: status
     name: ${devicename} Status
 
-  - platform: template
-    name: ${devicename} Doorbell
-    id: doorbell
-    device_class: moving
+#  - platform: template
+#    name: ${devicename} Doorbell
+#    id: doorbell
+#    device_class: moving
 
   - platform: gpio
     pin:

@@ -1,0 +1,89 @@
+# -------------------------------------
+# ---- Implemented on Brilliant LED Controller in rear garden ----
+# -------------------------------------
+substitutions:
+  devicename: brilliant_garden_5240
+
+esphome:
+  name: ${devicename}
+  platform: ESP8266
+  board: esp01_1m
+
+wifi:
+  #power_save_mode: light # power reduced from 1.2w to 0.8w
+  #fast_connect: true
+  networks:
+  - ssid: !secret wifi_ssid
+    password: !secret wifi_password
+    hidden: True
+  manual_ip:
+    static_ip: !secret ip_brilliant_garden2
+    gateway: !secret ip_gateway
+    subnet: 255.255.255.0
+  domain: .homelan
+  ap: # Enable fallback hotspot (captive portal) in case wifi connection fails
+    ssid: "${devicename} Hotspot"
+    password: !secret password
+
+captive_portal:
+
+#mqtt:
+#  broker: !secret mqtt_host
+#  username: !secret mqtt_username
+#  password: !secret mqtt_password
+#  reboot_timeout: 0s # Dont reboot..
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  password: !secret password
+  reboot_timeout: 0s # Dont reboot..
+
+ota:
+  password: !secret password
+
+web_server:
+  port: 80
+  auth:
+    username: admin
+    password: !secret password
+
+
+
+output:
+  - platform: esp8266_pwm
+    id: output_component_r
+    pin: GPIO4
+    #max_power: 80%
+  - platform: esp8266_pwm
+    id: output_component_g
+    pin: GPIO12
+    #max_power: 80%
+  - platform: esp8266_pwm
+    id: output_component_b
+    pin: GPIO14
+    #max_power: 80%
+  
+
+# https://esphome.io/components/light/rgb.html
+light:
+  - platform: rgb
+    name: "Brilliant Garden LED"
+    red: output_component_r
+    green: output_component_g
+    blue: output_component_b
+    effects:
+      - strobe:
+      - flicker:
+      - pulse:
+      - random:
+      - random:
+          name: "My Slow Random Effect"
+          transition_length: 30s
+          update_interval: 30s
+      - random:
+          name: "My Fast Random Effect"
+          transition_length: 4s
+          update_interval: 5s    

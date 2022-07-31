@@ -1,0 +1,287 @@
+# -------------------------------------
+# ---- Implemented on owon smart pet feeder ----
+# ---- https://www.instructables.com/ESPHome-Home-Assistant-Cat-Feeder/ ----
+#
+# Motor driver chip is a TC118S
+# INA  INB   MOTOR
+#  L    L     Hi-Z
+#  L    H     Left
+#  H    L     right
+#  H    H     Brake
+#
+#
+#                        |--------|
+#                        | TYWE3S |
+#                        |        |
+#                    RST |        | GPIO1 TXD0 (Ultrasonic Trigger)
+#                    ADC |        | GPIO3 RXD0 (Ultrasonic Echo + 1k resister)
+#                     EN |        | GPIO5 (MotorDriveB)
+#       (Red LED) GPIO16 |        | GPIO4 (MotorDriveA)
+#      (Blue LED) GPIO14 |        | GPIO0 (TopButton)
+#                 GPIO12 |        | GPIO2
+# (MotorPosition) GPIO13 |        | GPIO15
+#                    VCC |--------| GND
+#
+# -------------------------------------
+substitutions:
+  devicename: cat-feeder
+  distance_empty: "0.3"
+  
+esphome:
+  name: ${devicename}
+  platform: ESP8266
+  board: esp_wroom_02
+
+wifi:
+  power_save_mode: light # power reduced from 1.2w to 0.8w
+  #fast_connect: true
+  networks:
+  - ssid: !secret wifi_ssid
+    password: !secret wifi_password
+    hidden: True
+  manual_ip:
+    static_ip: !secret ip_cat_feeder
+    gateway: !secret ip_gateway
+    subnet: 255.255.255.0
+  domain: .homelan
+  ap: # Enable fallback hotspot (captive portal) in case wifi connection fails
+    ssid: "${devicename} Hotspot"
+    password: !secret password
+
+captive_portal:
+
+#mqtt:
+#  broker: !secret mqtt_host
+#  username: !secret mqtt_username
+#  password: !secret mqtt_password
+#  reboot_timeout: 0s # Dont reboot..
+
+# Enable logging
+logger:
+  level: WARN
+
+# Enable Home Assistant API
+api:
+  password: !secret password
+  reboot_timeout: 0s # Dont reboot..
+
+ota:
+  password: !secret password
+
+web_server:
+  port: 80
+  auth:
+    username: admin
+    password: !secret password
+
+
+#-------------------------------------------------------------------------------
+
+text_sensor:
+  - platform: template
+    name: "${devicename} State"
+    lambda: |-
+      if( id(run_motor).is_running() ) { return {"Running"}; }
+      else
+      if( id(flash_pos_switch_error).is_running() ) { return {"Jammed"}; }
+      else
+      return {"Idle"};
+    update_interval: 1s
+
+
+
+switch:
+  - platform: gpio          # Motor driver
+    pin: GPIO4
+    id: motor_drive_a
+    restore_mode: ALWAYS_OFF
+
+  - platform: gpio          # Motor driver
+    pin: GPIO5
+    id: motor_drive_b
+    restore_mode: ALWAYS_OFF
+
+  - platform: gpio          # BLUE led (D1)
+    pin: GPIO14
+    id: led_blue
+    inverted: true
+    restore_mode: ALWAYS_OFF
+
+  - platform: template      # Home assistant control
+    id: ha_run
+    name: "${devicename} Run"
+    icon: "mdi:cat"
+    restore_state: off
+    lambda: "return id(run_motor).is_running();"
+    turn_on_action:
+      - logger.log:
+          format: "ha_run on_action. Calling script run motor."
+          level: DEBUG
+      # Do not run if the product is jammed.
+      - if:
+          condition:
+            - script.is_running: flash_pos_switch_error
+          then:
+            - logger.log:
+                format: "ha_run on_action. Cannot run: Jammed."
+                level: ERROR
+          else:
+            - script.execute: run_motor   # Run the motor.
+
+
+
+status_led:
+  pin:
+    number: GPIO16          # RED led (D3)
+    inverted: yes
+
+
+
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO0
+    id: sw_user_btn
+    filters:
+      - invert:
+      - delayed_on_off: 25ms
+    on_press:
+      then:
+        - logger.log:
+            format: "sw_user_btn pressed. Calling script run motor."
+            level: DEBUG
+        - script.execute: run_motor   # Run the motor.
+
+  - platform: template
+    id: is_motor_running
+    on_press:
+      then:
+        - switch.turn_on: motor_drive_a             # Turn on motor.
+        - script.execute: flash_motor_running_led
+       
+        - logger.log:
+            format: "is_motor_running - go."
+            level: DEBUG
+    on_release:
+      then:
+        - switch.turn_off: motor_drive_a            # Turn off motor.
+        - script.stop: flash_motor_running_led
+        - switch.turn_off: led_blue
+        - logger.log:
+            format: "is_motor_running - stop."
+            level: DEBUG
+
+  - platform: gpio
+    pin:
+      number: GPIO13
+    id: sw_motor_position
+    filters:
+      - delayed_on_off: 25ms
+    on_release:
+      then:
+        - logger.log:
+            format: "Position switch released - stopping motor."
+            level: DEBUG
+        # Stop the motor.
+        - binary_sensor.template.publish:
+            id: is_motor_running
+            state: OFF
+        # The position switch is ok, clear any error.
+        - script.stop: flash_pos_switch_error
+
+  - platform: gpio
+    pin:
+      number: GPIO2
+    id: unknown_usage
+
+
+
+sensor:
+  - platform: ultrasonic
+    id: ultras
+    name: "${devicename} Food Level"
+    trigger_pin: GPIO1
+    echo_pin: GPIO3
+    update_interval: 30s
+    icon: "mdi:gauge"
+    accuracy_decimals: 1
+    unit_of_measurement: "%"
+    timeout: 1m
+    filters:
+      - filter_out: nan
+      - calibrate_linear: # https://esphome.io/components/sensor/index.html#sensor-filters
+#        - 0.16 -> 0.0 # Empty Value
+        - 0.128 -> 0.0 # Time to shake or refill
+        - 0.06 -> 100.0 # Full Value
+      - median:
+          window_size: 10
+          send_every: 5
+
+
+
+script:
+- id: motor_overrun_protection  # A script to stop the motor if it runs too long
+  mode: restart
+  then:
+    - delay: 4000ms
+    # If the motor is still running, an error occurred (position switch faulty.)
+    - if:
+        condition:
+          - binary_sensor.is_on: is_motor_running
+        then:
+          # Stop the motor.
+          - binary_sensor.template.publish:
+              id: is_motor_running
+              state: OFF
+          
+          # Flash an error and log an error message.
+          - script.execute: flash_pos_switch_error
+          - logger.log:
+              format: "Motor overrun!! Check motor position switch!"
+              level: ERROR
+
+- id: run_motor   # A script that runs the motor. 
+                  # This script will be stopped by the motor position switch.
+                  # If this script runs for > 4 secs, the motors will be stopped and a error logged.
+  mode: queued
+  then:
+    - logger.log:
+        format: "run_motor script begin."
+        level: DEBUG
+    - binary_sensor.template.publish:
+        id: is_motor_running
+        state: ON
+    - script.execute: motor_overrun_protection    # Script will restart if it's already running.
+    # Do nothing until the position switch turns off the motor.
+    - wait_until:
+        condition:
+          - binary_sensor.is_off: is_motor_running
+    - logger.log:
+        format: "run_motor script complete."
+        level: DEBUG
+
+- id: flash_motor_running_led
+  mode: restart
+  then:
+    while:
+      condition:
+        lambda: |-
+          return true;
+      then:
+        - switch.turn_on: led_blue
+        - delay: 250ms
+        - switch.turn_off: led_blue
+        - delay: 250ms
+
+- id: flash_pos_switch_error
+  mode: restart
+  then:
+    while:
+      condition:
+        lambda: |-
+          return true;
+      then:
+        - switch.turn_on: led_blue
+        - delay: 150ms
+        - switch.turn_off: led_blue
+        - delay: 150ms

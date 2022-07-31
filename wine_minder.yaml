@@ -57,25 +57,49 @@ sensor:
     pin: GPIO4
     model: AM2302
     temperature:
-      name: "Box Outside Temperature"
+      name: "${devicename} Outside Temperature"
     humidity:
-      name: "Box Outside Humidity"
+      name: "${devicename} Outside Humidity"
     update_interval: 1min
 
   - platform: dht
     pin: GPIO0
     model: AM2302
     temperature:
-      name: "Box Bottom Temperature"
+      name: "${devicename} Bottom Temperature"
     humidity:
-      name: "Box Bottom Humidity"
+      name: "${devicename} Bottom Humidity"
+      id: humBot
     update_interval: 5min
 
   - platform: dht
     pin: GPIO3
     model: AM2302
     temperature:
-      name: "Box Top Temperature"
+      name: "${devicename} Top Temperature"
     humidity:
-      name: "Box Top Humidity"
+      name: "${devicename} Top Humidity"
+      id: humTop
     update_interval: 5min
+
+
+binary_sensor:
+  - platform: template
+    name: "${devicename} Bottom Problem"
+    device_class: moisture
+    lambda: |-
+      if (id(humBot).state >= 45 && id(humBot).state <= 55) {
+        return false;
+      } else {
+        return true;
+      }
+
+  - platform: template
+    name: "${devicename} Top Problem"
+    device_class: moisture
+    lambda: |-
+      if (id(humTop).state >= 45 && id(humTop).state <= 55) {
+        return false;
+      } else {
+        return true;
+      }      

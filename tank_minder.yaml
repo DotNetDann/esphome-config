@@ -1,7 +1,17 @@
-# -------------------------------------
-# ---- Implemented on D1 mini on side of external water tank ----
-# ---- v1.2
-# -------------------------------------
+# ------------------------------
+# ---- Implemented on Sonoff Dual R2 inside housing of external water tank ----
+# ------------------------------
+#GPIO0	Button 0 on header                NOT USED
+#GPIO3	Serial Rx and Optional Sensor
+#GPIO1	Serial Tx and Optional Sensor
+#GPIO5	Relay 2 (RED LED)
+#GPIO9	Button 1 on header
+#GPIO10	Button on Case
+#GPIO12	Relay 1 (GREEN LED)
+#GPIO13	Blue Led (Inverted)
+
+# GND GPIO1  GPIO3  3.3v  GPIO0  GPIO9 GPIO10  GPIO13  NA  NA  NA  5v
+
 substitutions:
   devicename: tank_minder
 
@@ -36,6 +46,7 @@ captive_portal:
 
 # Enable logging
 logger:
+  baud_rate: 0 # So we can use the RX and TX pins
 
 # Enable Home Assistant API
 api:
@@ -53,29 +64,30 @@ web_server:
 
 
 i2c:
-  sda: GPIO4
-  scl: GPIO5
+  sda: GPIO3
+  scl: GPIO1
   id: bus_a
-#  scan: True
+  scan: True
 
 ads1115: #https://esphome.io/components/sensor/ads1115.html
   - address: 0x48
 
 dallas:
-  - pin: GPIO12
+  - pin: GPIO9
 
 # Used a '5V DC Pressure Transducer Sensor 0-1.2 MPa Oil Fuel Diesel Gas Water Air' = 174psi - 60PSI would prbably be ok but use a 100PSI just in case
+# https://bluerobotics.com/learn/pressure-depth-calculator/
 sensor:
   - platform: ads1115
     id: adclevel
     multiplexer: 'A0_GND'
 #    gain: 6.144 #(measures up to 6.144V)
 #    gain: 4.096 #(measures up to 4.096V) # Full hose pressure is around 3.1v (100PSI)
-    gain: 2.048 #(measures up to 2.048V) # Full hose pressure is just shy of 2v (1.2MPa)
-#    gain: 1.024 #(measures up to 1.024V)
+#    gain: 2.048 #(measures up to 2.048V) # Full hose pressure is just shy of 2v (1.2MPa -> 174PSI)
+    gain: 1.024 #(measures up to 1.024V)
 #    gain: 0.512 #(measures up to 0.512V)
-#    gain: 0.256 #(measures up to 0.256V)    
-    name: "Water Tank Level"
+#    gain: 0.256 #(measures up to 0.256V)
+    name: ${devicename} Level
     icon: "mdi:cup-water"
     accuracy_decimals: 0
     unit_of_measurement: "L"
@@ -86,14 +98,15 @@ sensor:
 #      - 0.490 -> 0.0 # Empty Value     (100PSI)
 #      - 0.848 -> 3000.0 # Full Value   (100PSI)
       - 0.490 -> 0.0 # Empty Value     (1.2MPa)
-      - 0.548 -> 3000.0 # Full Value   (1.2MPa)
-#    - median:
-#        window_size: 10
-#        send_every: 5
+      - 0.566 -> 3000.0 # Full Value   (1.2MPa)
+#      - 0.579 -> 3000.0 # Full Value   (1.2MPa)
+    - median:
+        window_size: 10
+        send_every: 5
 
   - platform: template
-    name: "Water Tank Status"
-    update_interval: 2min
+    name: ${devicename} Status
+    update_interval: 1min
     unit_of_measurement: '%'
     icon: "mdi:water-percent"
     accuracy_decimals: 0
@@ -102,48 +115,51 @@ sensor:
 
   - platform: dallas
     address: 0xDE3C01D607548128
-    name: "Outside Temperature"
+    name: ${devicename} Temperature
 
 
-#binary_sensor:
+binary_sensor:
 #  - platform: gpio
 #    pin:
-#      number: GPIO14
+#      number: GPIO0
 #      mode: INPUT_PULLUP
 #      inverted: True
-#    name: "Water Tank Pump On"
-#    device_class: moisture
-#    filters:
-#      - delayed_on: 10ms
-#      - delayed_off: 10ms
-#      
+#    name: GPIO0    
+
 #  - platform: gpio
 #    pin:
-#      number: GPIO12
+#      number: GPIO9
 #      mode: INPUT_PULLUP
 #      inverted: True
-#    name: "Water Tank Rain Water"
-#    filters:
-#      - delayed_on: 10ms
-#      - delayed_off: 10ms
+#    name: "GPIO9"
 #
-#  - platform: gpio
-#    pin:
-#      number: GPIO13
-#      mode: INPUT_PULLUP
+  - platform: gpio
+    pin:
+      number: GPIO10 # Case Button
+      mode: INPUT_PULLUP
 #      inverted: True
-#    name: "Water Tank Mains Water"
-#    filters:
-#      - delayed_on: 10ms
-#      - delayed_off: 10ms
-#
-#  - platform: gpio
-#    pin:
-#      number: GPIO15
-#      mode: INPUT_PULLUP
-#      inverted: True
-#    name: "Water Tank Warning"
-#    device_class: safety
-#    filters:
-#      - delayed_on: 10ms
-#      - delayed_off: 10ms
+    name: ${devicename} Button
+    filters:
+      - delayed_on: 10ms
+      - delayed_off: 10ms
+    on_press:
+      - switch.toggle: relay1
+
+
+switch:
+  - platform: gpio
+#    name: "Water Tank Relay 1" # Green Led
+    name: ${devicename} Spare
+    pin: GPIO12
+    id: relay1
+  - platform: gpio
+#    name: "Water Tank Relay 2" # Red Led
+    name: ${devicename} Pump
+    pin: GPIO5
+    id: relay2
+
+
+status_led:
+  pin:
+    number: GPIO13
+    inverted: yes

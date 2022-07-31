@@ -14,6 +14,8 @@ esphome:
   name: ${devicename}
   platform: ESP32
   board: esp32cam
+  platformio_options:
+    board_build.f_cpu: 80000000L # Slow it down to reduce power consumption. Dont go lower as WIFI wont work
 #  on_boot:
 #    priority: 900
 #    then:
@@ -43,11 +45,6 @@ wifi:
     gateway: !secret ip_gateway
     subnet: 255.255.255.0
   domain: .homelan
-#  ap: # Enable fallback hotspot (captive portal) in case wifi connection fails
-#    ssid: "${devicename} Hotspot"
-#    password: !secret password
-#
-#captive_portal:
 
 mqtt:
   broker: !secret mqtt_host
@@ -65,7 +62,7 @@ mqtt:
       then:
         - deep_sleep.enter: deep_sleep_1
   on_json_message:
-    - topic: ${devicename}/sleep_min # NOTE: This is for the next sleep evernt ONLY!!
+    - topic: ${devicename}/sleep_min # NOTE: This is for the next sleep event ONLY!!
       then:
         - lambda: |-
             int min = x["min"];
@@ -73,7 +70,7 @@ mqtt:
 
 
 # Dont enable logging. Faster??
-#logger:
+logger:
 
 # Dont enable Home Assistant API with deep sleep
 #api:
@@ -89,8 +86,9 @@ web_server:
     username: admin
     password: !secret password
 
+
 #Configuration for Ai-Thinker Camera
-esp32_webcam:
+esp32_camera:
    external_clock:
      pin: GPIO0
      frequency: 20MHz
@@ -104,11 +102,15 @@ esp32_webcam:
    power_down_pin: GPIO32
    name: ${devicename} cam
    resolution: 1024X768
-   #idle_framerate: 0.1fps #Max 0.1fps
-   #idle_framerate: 0.5fps #Max 0.1fps
-   #vertical_flip: true
-   #horizontal_mirror: true
-   
+
+esp32_camera_web_server:
+  - port: 8080
+    mode: stream
+  - port: 8081
+    mode: snapshot
+
+
+
 #define PWDN_GPIO_NUM -1
 #define RESET_GPIO_NUM 15
 #define XCLK_GPIO_NUM 27
@@ -125,7 +127,6 @@ esp32_webcam:
 #define VSYNC_GPIO_NUM 22
 #define HREF_GPIO_NUM 26
 #define PCLK_GPIO_NUM 21
-   
 
 
 output:
@@ -185,7 +186,7 @@ sensor:
     update_interval: 30s
     attenuation: 11db
     filters:
-    - multiply: 1.85
+    - multiply: 2
 #    - calibrate_linear:
 #      - 0.0 -> 3.0
 #      - 100.0 -> 4.2
@@ -199,7 +200,7 @@ sensor:
       return (id(batt).state);
     filters:
     - calibrate_linear:
-      - 2.8 -> 0.0
+      - 3.5 -> 0.0
       - 4.2 -> 100.0
 
 
@@ -208,19 +209,20 @@ deep_sleep:
   id: deep_sleep_1
   run_duration: 30sec
   sleep_duration: 45min
-  esp32_ext1_wakeup:
-    pins: GPIO2
-    mode: ALL_LOW
+  #sleep_duration: 45sec
+#  esp32_ext1_wakeup:
+#    pins: GPIO2
+#    mode: ALL_LOW
 
 
-binary_sensor:
-  - platform: gpio
-    pin:
-      number: GPIO2
-      inverted: True
-      mode: INPUT_PULLUP
-    name: ${devicename} notification
-    device_class: occupancy
+#binary_sensor:
+#  - platform: gpio
+#    pin:
+#      number: GPIO2
+#      inverted: True
+#      mode: INPUT_PULLUP
+#    name: ${devicename} notification
+#    device_class: occupancy
 
 
 # NODE RED

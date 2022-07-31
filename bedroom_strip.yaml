@@ -60,7 +60,7 @@ web_server:
 light:
   - platform: neopixelbus
     type: RGB #GRB??
-#    variant: WS2811 #Needed??
+    variant: WS2811
     pin: GPIO3 #Solder time
     power_supply: mosfet
     num_leds: 40
@@ -82,7 +82,8 @@ light:
 # https://esphome.io/components/power_supply.html
 power_supply:
   - id: mosfet
-    enable_time: 50ms
+    enable_time: 30ms
+    #enable_time: 50ms
     keep_on_time: 2s
     pin:
       number: GPIO13

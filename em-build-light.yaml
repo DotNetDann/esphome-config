@@ -1,0 +1,79 @@
+# -------------------------------------
+# ---- Implemented on EM Build notifier wooden slab ----
+# -------------------------------------
+substitutions:
+  devicename: em-build-light
+
+esphome:
+  name: ${devicename}
+  platform: ESP8266
+  board: esp01_1m
+
+wifi:
+  #power_save_mode: light # power reduced from 1.2w to 0.8w
+  #fast_connect: true
+  networks:
+  - ssid: !secret wifi_ssid
+    password: !secret wifi_password
+    hidden: True
+  manual_ip:
+    static_ip: !secret ip_em_build_light
+    gateway: !secret ip_gateway
+    subnet: 255.255.255.0
+  domain: .homelan
+  ap: # Enable fallback hotspot (captive portal) in case wifi connection fails
+    ssid: "${devicename} Hotspot"
+    password: !secret password
+
+captive_portal:
+
+#mqtt:
+#  broker: !secret mqtt_host
+#  username: !secret mqtt_username
+#  password: !secret mqtt_password
+#  reboot_timeout: 0s # Dont reboot..
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  password: !secret password
+  reboot_timeout: 0s # Dont reboot..
+  services:
+    - service: set_pixel
+      variables:
+        range_from: int
+        range_to: int
+        red: int
+        green: int
+        blue: int
+      then:
+        - light.addressable_set:
+           id: light1
+           range_from: !lambda 'return range_from;'
+           range_to: !lambda 'return range_to;'
+           red: !lambda 'return red / 100.0;'
+           green: !lambda 'return green / 100.0;'
+           blue: !lambda 'return blue / 100.0;'
+
+ota:
+  password: !secret password
+
+web_server:
+  port: 80
+  auth:
+    username: admin
+    password: !secret password
+
+
+light:
+  - platform: fastled_spi
+    id: light1
+    chipset: APA102
+    data_pin: GPIO12
+    clock_pin: GPIO13
+    num_leds: 14
+    rgb_order: BGR
+    name: ${devicename} Light
+
