@@ -207,7 +207,7 @@ sensor:
 #esp32_ext1_wakeup seems to save more energy then wakeup_pin
 deep_sleep:
   id: deep_sleep_1
-  run_duration: 30sec
+  run_duration: 40sec
   sleep_duration: 45min
   #sleep_duration: 45sec
 #  esp32_ext1_wakeup:

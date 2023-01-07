@@ -1,8 +1,9 @@
 #pragma once
 
 #include "esphome/core/component.h"
-#include "esphome/core/esphal.h"
+#include "esphome/core/hal.h"
 #include "esphome/components/output/float_output.h"
+#include <vector>
 
 namespace esphome {
 namespace sm2135 {
@@ -13,8 +14,6 @@ class SM2135 : public Component {
 
   void set_data_pin(GPIOPin *data_pin) { data_pin_ = data_pin; }
   void set_clock_pin(GPIOPin *clock_pin) { clock_pin_ = clock_pin; }
-  void set_num_channels(uint8_t num_channels) { num_channels_ = num_channels; }
-  void set_num_chips(uint8_t num_chips) { num_chips_ = num_chips; }
 
   void setup() override;
 
@@ -32,8 +31,8 @@ class SM2135 : public Component {
 
    protected:
     void write_state(float state) override {
-        auto amount = static_cast<uint8_t>(state * 0xff);
-        this->parent_->set_channel_value_(this->channel_, amount);
+      auto amount = static_cast<uint8_t>(state * 0xff);
+      this->parent_->set_channel_value_(this->channel_, amount);
     }
 
     SM2135 *parent_;
@@ -56,7 +55,7 @@ class SM2135 : public Component {
 
   void write_byte_(uint8_t data) {
     for (uint8_t mask = 0x80; mask; mask >>= 1) {
-        this->write_bit_(data & mask);
+      this->write_bit_(data & mask);
     }
     this->clock_pin_->digital_write(false);
     this->data_pin_->digital_write(true);
@@ -66,18 +65,15 @@ class SM2135 : public Component {
   void write_buffer_(uint8_t *buffer, uint8_t size) {
     this->data_pin_->digital_write(false);
     for (uint32_t i = 0; i < size; i++) {
-        this->write_byte_(buffer[i]);
+      this->write_byte_(buffer[i]);
     }
     this->clock_pin_->digital_write(false);
     this->clock_pin_->digital_write(true);
     this->data_pin_->digital_write(true);
-    
   }
 
   GPIOPin *data_pin_;
   GPIOPin *clock_pin_;
-  uint8_t num_channels_;
-  uint8_t num_chips_;
   uint8_t update_channel_;
   std::vector<uint8_t> pwm_amounts_;
   bool update_{true};

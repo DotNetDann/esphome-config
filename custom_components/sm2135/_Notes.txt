@@ -1,0 +1,8 @@
+Changes from https://github.com/esphome/esphome/tree/dev/esphome/components/sm2135
+
+sm2135.cpp
+* 55 -> if (this->update_channel_ == 4 || this->update_channel_ == 5) {
+* 62 -> data[0] = SM2135_ADDR_W;
+
+
+

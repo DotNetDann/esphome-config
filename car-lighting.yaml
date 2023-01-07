@@ -42,8 +42,8 @@ esphome:
   platform: ESP8266
   board: nodemcuv2
   on_boot:
-    priority: 650.0 #https://esphome.io/components/esphome.html
-#    priority: 550.0
+#    priority: 650.0 #https://esphome.io/components/esphome.html
+    priority: 550.0
     then:
       - light.turn_on:
           id: leds
@@ -187,11 +187,11 @@ light:
             call.set_rgb(0.5, 0.75, 1.0);
             call.perform();
       - lambda:
-          name: "Purple" # https://convertingcolors.com/rgb-color-128_0_128.html?search=RGB(128,0,128)
+          name: "Purple" # https://convertingcolors.com/rgb-color-128_0_128.html?search=RGB(191,0,255)
           update_interval: 5s
           lambda: |-
             auto call = id(leds).make_call();
-            call.set_rgb(0.5, 0, 0.5);
+            call.set_rgb(0.75, 0, 1);
             call.perform();
 
 

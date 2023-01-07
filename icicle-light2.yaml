@@ -2,7 +2,7 @@
 # ---- Implemented on Mirabella Genio Icicle Controller ----
 # -------------------------------------
 substitutions:
-  devicename: icicle_light
+  devicename: icicle_light2
 
 esphome:
   name: ${devicename}
@@ -20,7 +20,7 @@ wifi:
     password: !secret wifi_password
     hidden: True
   manual_ip:
-    static_ip: !secret ip_icicle_light
+    static_ip: !secret ip_icicle_light2
     gateway: !secret ip_gateway
     subnet: 255.255.255.0
   domain: .homelan

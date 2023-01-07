@@ -85,15 +85,15 @@ light:
     blue: output_blue
     white: output_warmwhite
     restore_mode: ALWAYS_ON # Ensure the light turns on by default if the physical switch is actuated.
-#    effects:
-#      - strobe:
-#      - flicker:
-#      - random:
-#      - random:
-#          name: "My Slow Random Effect"
-#          transition_length: 30s
-#          update_interval: 30s
-#      - random:
-#          name: "My Fast Random Effect"
-#          transition_length: 4s
-#          update_interval: 5s  
+    effects:
+      - strobe:
+      - flicker:
+      - random:
+      - random:
+          name: "My Slow Random Effect"
+          transition_length: 30s
+          update_interval: 30s
+      - random:
+          name: "My Fast Random Effect"
+          transition_length: 4s
+          update_interval: 5s  
