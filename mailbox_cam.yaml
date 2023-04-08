@@ -8,7 +8,8 @@
 #https://community.home-assistant.io/t/deep-sleep-and-multiple-buttons/167214/11
 
 substitutions:
-  devicename: mailbox_cam
+  devicename: mailbox-cam
+  deviceip: !secret ip_mailbox_cam
 
 esphome:
   name: ${devicename}
@@ -16,22 +17,6 @@ esphome:
   board: esp32cam
   platformio_options:
     board_build.f_cpu: 80000000L # Slow it down to reduce power consumption. Dont go lower as WIFI wont work
-#  on_boot:
-#    priority: 900
-#    then:
-#      lambda: |-
-#        id(wake_up_reason) = esp_sleep_get_wakeup_cause();
-#        id(wake_up_reason2) = esp_sleep_get_ext1_wakeup_status();
-
-#globals:
-#  - id: wake_up_reason
-#    type: int
-#    restore_value: no
-#    initial_value: '0'
-#  - id: wake_up_reason2
-#    type: int
-#    restore_value: no
-#    initial_value: '0'
 
 wifi:
   #power_save_mode: light # power reduced from ?.?w to ?.?w
@@ -69,13 +54,16 @@ mqtt:
             id(deep_sleep_1).set_sleep_duration(min * 60 * 1000);
 
 
-# Dont enable logging. Faster??
+# Enable logging
 logger:
+#  level: WARN
 
 # Dont enable Home Assistant API with deep sleep
 #api:
-#  password: !secret password
 #  reboot_timeout: 0s # Dont reboot..
+#  encryption:
+#    key: !secret encryption_key
+
 
 ota:
   password: !secret password
@@ -86,6 +74,9 @@ web_server:
     username: admin
     password: !secret password
 
+
+dallas:
+  - pin: GPIO14
 
 #Configuration for Ai-Thinker Camera
 esp32_camera:
@@ -109,8 +100,6 @@ esp32_camera_web_server:
   - port: 8081
     mode: snapshot
 
-
-
 #define PWDN_GPIO_NUM -1
 #define RESET_GPIO_NUM 15
 #define XCLK_GPIO_NUM 27
@@ -127,6 +116,19 @@ esp32_camera_web_server:
 #define VSYNC_GPIO_NUM 22
 #define HREF_GPIO_NUM 26
 #define PCLK_GPIO_NUM 21
+
+text_sensor:
+  - platform: template
+    name: ${devicename} camera stream
+    lambda: |-
+      return {"http://${deviceip}:8080"};
+    update_interval: 1d
+
+  - platform: template
+    name: ${devicename} camera snapshot
+    lambda: |-
+      return {"http://${deviceip}:8081"};
+    update_interval: 1d    
 
 
 output:
@@ -204,6 +206,32 @@ sensor:
       - 4.2 -> 100.0
 
 
+
+
+
+  - platform: dallas
+    address: 0x7b0000000519201d
+    name: "${devicename} water counter"
+    accuracy_decimals: 0
+    unit_of_measurement: "pulses"
+    icon: "mdi:water"
+    id: water_pulse
+
+  - platform: template
+    name: "${devicename} water usage"
+    accuracy_decimals: 3
+    unit_of_measurement: "litres"
+    icon: "mdi:water"
+    lambda: return (id(water_pulse).state / 100);
+
+# Ester V100 water meter
+# https://sbs.digital/products/v100-psm-water-meter
+# Elster MEB7454 pulse probe
+# T110 – Elster Pulse T Probe for V100 (PSM)
+
+
+
+
 #esp32_ext1_wakeup seems to save more energy then wakeup_pin
 deep_sleep:
   id: deep_sleep_1
@@ -230,12 +258,65 @@ deep_sleep:
 
 #GPIO1		TX
 #GPIO3		RX
-#GPIO0		GND for flashing
+#GPIO0		Cam - clock
 #GPIO16		. Input (10k Ohm pull-up)
-#GPIO4		Onboard LED
+#GPIO4		Onboard Flashlight LED
 #GPIO2		.
-#GPIO14		.
+#GPIO14		. - TRY counter
 #GPIO15		.		pinMode(OUTPUT_OPEN_DRAIN, GPIO_NUM_15);
 #GPIO13		.
 #GPIO12		.		pinMode(OUTPUT_OPEN_DRAIN, GPIO_NUM_12);
-#GPIO33		Onboard LED
+#GPIO33		ADC for batt voltage
+
+
+
+
+# ----------------------------------------------------------------
+# ----------------------------------------------------------------
+# This is for if the unit is NOT on battrey and use the ESP as the counter
+
+#  - platform: pulse_counter
+#    pin: GPIO14
+#    update_interval : 6s
+#    name: "${devicename} water counter"
+#    id: water_pulse
+#    total:
+#      name: "${devicename} water counter Total"
+##      unit_of_measurement: "m³"
+##      id: water_meter_total2
+##      accuracy_decimals: 3
+#      device_class: water
+#      state_class: total_increasing
+
+
+#  - platform: template
+#    name: "${devicename} water Usage Litre"
+#    id: water_flow_rate
+#    accuracy_decimals: 1
+#    unit_of_measurement: "l/min"
+#    icon: "mdi:water"
+#    lambda: return (id(water_pulse).state * 10);
+#    update_interval: 6s
+
+# Doesnt work for some reason?????
+#  - platform: pulse_meter
+#    pin: GPIO14
+#    name: "${devicename} water meterzz"
+#    unit_of_measurement: "litre/min"
+#    icon: "mdi:water"
+#    internal_filter: 100ms
+#    accuracy_decimals: 3
+#    filters:
+#      - multiply: 1.001        
+#    total:
+#      name: "${devicename} water meter Totalzz"
+#      unit_of_measurement: "m³"
+#      id: water_meter_total
+#      accuracy_decimals: 3
+#      device_class: water
+#      state_class: total_increasing
+##      filters:
+##        - multiply: 0.001
+##    on_value:
+##      then:
+##        - light.toggle: stat_led

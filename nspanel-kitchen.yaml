@@ -41,12 +41,15 @@ wifi:
 
 captive_portal:
 
+# Enable logging
 logger:
 #  level: WARN
 
+# Enable Home Assistant API
 api:
-  password: !secret password
   reboot_timeout: 0s # Dont reboot..
+  encryption:
+    key: !secret encryption_key
   services:
     # Service to play a song
   - service: play_rtttl
@@ -854,5 +857,5 @@ display:
             id: brightness
             value: 30
 #        - lambda: 'id(disp1).set_component_text_printf("home.txtTempOut", "%.1f", id(outdoor_temperature).state);'
-        - rtttl.play: "twobits:d=4,o=5,b=220:c6,8g,8g,a,g,p,b,c6"
- 
+#        - rtttl.play: "twobits:d=4,o=5,b=220:c6,8g,8g,a,g,p,b,c6"
+        - rtttl.play: "onebit:d=4,o=5,b=220:c6"

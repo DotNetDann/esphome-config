@@ -30,17 +30,26 @@ wifi:
 
 captive_portal:
 
-# Enable Home Assistant API
-api:
-  password: !secret password
-  reboot_timeout: 0s # Dont reboot..
-
-
 # Enable logging
 logger:
 
+# Enable Home Assistant API
+api:
+  reboot_timeout: 0s # Dont reboot..
+  encryption:
+    key: !secret encryption_key
+
+
 ota:
   password: !secret password
+
+# NO WEB SERVER!!!!
+#web_server:
+#  port: 80
+#  auth:
+#    username: admin
+#    password: !secret password
+
 
 # Dam thing always flashes
 #status_led:

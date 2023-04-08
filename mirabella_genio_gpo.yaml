@@ -11,7 +11,7 @@ esphome:
   board: esp8285
 
 wifi:
-  #power_save_mode: light # power reduced from 1.2w to 0.8w
+  power_save_mode: light # power reduced from 1.2w to 0.8w
   #fast_connect: true
   networks:
   - ssid: !secret wifi_ssid
@@ -28,19 +28,14 @@ wifi:
 
 captive_portal:
 
-#mqtt:
-#  broker: !secret mqtt_host
-#  username: !secret mqtt_username
-#  password: !secret mqtt_password
-#  reboot_timeout: 0s # Dont reboot..
-
 # Enable logging
 logger:
 
 # Enable Home Assistant API
 api:
-  password: !secret password
   reboot_timeout: 0s # Dont reboot..
+  encryption:
+    key: !secret encryption_key
 
 ota:
   password: !secret password
@@ -96,9 +91,19 @@ switch:
     pin:
       number: GPIO14
       inverted: no
+    on_turn_on:
+    - light.turn_on: stat_led
+    on_turn_off:
+    - light.turn_off: stat_led
 
+light:
+  - platform: status_led
+    id: stat_led
+    pin:
+      number: GPIO13
+      inverted: yes
 
-status_led:
-  pin:
-    number: GPIO13
-    inverted: yes
+#status_led:
+#  pin:
+#    number: GPIO13
+#    inverted: yes

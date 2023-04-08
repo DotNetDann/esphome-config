@@ -30,9 +30,11 @@ captive_portal:
 # Enable logging
 logger:
 
+# Enable Home Assistant API
 api:
-  password: !secret password
-  reboot_timeout: 0s # Dont reboot.. 
+  reboot_timeout: 0s # Dont reboot..
+  encryption:
+    key: !secret encryption_key
 
 ota:
   password: !secret password
@@ -77,20 +79,32 @@ sensor:
     - calibrate_linear: # https://esphome.io/components/sensor/index.html#sensor-filters
 #      - 0.490 -> 0.0 # Empty Value     (100PSI)
 #      - 0.848 -> 3000.0 # Full Value   (100PSI)
-      - 0.542 -> 0.0 # Empty Value     (1.2MPa)
-      - 0.598 -> 3000.0 # Full Value   (1.2MPa)
+#      - 0.542 -> 0.0 # Empty Value     (1.2MPa)
+      - 0.560 -> 0.0 # Empty Value     (1.2MPa)
+      - 0.605 -> 3000.0 # Full Value   (1.2MPa)
 #    - median:
 #        window_size: 10
 #        send_every: 5
 
   - platform: template
     name: "${devicename} Status"
+    id: tankPer
     update_interval: 2min
     unit_of_measurement: '%'
     icon: "mdi:water-percent"
     accuracy_decimals: 0
     lambda: |-
       return ((id(adclevel).state / 3000) * 100.00);
+    on_value_range:
+        - above: 75.0
+          then:
+            - if:
+                condition:
+                  - switch.is_off: override
+                then:
+                  - switch.turn_off: relay
+                  - logger.log: "The tank is full enough!"
+
 
   - platform: dallas
     address: 0xDE3C01D607548128
@@ -99,3 +113,32 @@ sensor:
   - platform: wifi_signal
     name: ${devicename} wifi signal
     update_interval: 60s
+
+
+switch:
+  - platform: template
+    name: "${devicename} Fill Override"
+    id: override
+    optimistic: true
+
+  - platform: gpio
+    name: "${devicename} Fill Relay"
+    id: relay
+    pin:
+      number: GPIO13
+      inverted: false
+    on_turn_on:
+      then:
+      - if:
+          condition:
+            - lambda: 'return id(tankPer).state > 60;'
+            - switch.is_off: override
+          then:
+            - switch.turn_off: relay
+            - logger.log: "The tank is full enough!"
+            - delay: 2s
+            - switch.turn_off: relay
+          else:
+            - delay: 1h
+            - switch.turn_off: relay
+            - logger.log: "Relay was on for an hour!"

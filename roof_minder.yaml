@@ -28,19 +28,14 @@ wifi:
 
 captive_portal:
 
-#mqtt:
-#  broker: !secret mqtt_host
-#  username: !secret mqtt_username
-#  password: !secret mqtt_password
-#  reboot_timeout: 0s # Dont reboot..
-
 # Enable logging
 logger:
 
 # Enable Home Assistant API
 api:
-  password: !secret password
   reboot_timeout: 0s # Dont reboot..
+  encryption:
+    key: !secret encryption_key
 
 ota:
   password: !secret password
